@@ -18,7 +18,8 @@ def setup_boundary_conditions(
     h_elem: float,
     crack_center: List[float] = [0.0, 0.0],
     upper_face_free: bool = False,
-    symmetric: bool = False
+    symmetric: bool = False,
+    axisymmetric: bool = False
 ) -> Tuple[List[DirichletBC], List[DirichletBC]]:
     """
     Configura las condiciones de borde para el problema de fractura hidráulica.
@@ -45,14 +46,39 @@ def setup_boundary_conditions(
 
     # --- 1. Condiciones Mecánicas (Desplazamiento) ---
     
-    # a. Borde Inferior: Empotrado o deslizante según el caso (aquí fijo u=0)
-    #    Para simulaciones KGD 'deep', solemos fijar u_y=0 o u=0 en bordes lejanos.
-    #    Aquí se mantiene la lógica original: fijo completo en el fondo.
-    def bottom_side(x, on_boundary):
-        return near(x[1], mesh.coordinates()[:, 1].min())
-
-    bc_bottom = DirichletBC(V_u, Constant((0.0, 0.0)), bottom_side)
-    bcs_u.append(bc_bottom)
+    # a. Borde Inferior (Bottom)
+    # Case A: Full Domain (symmetric=False). Bottom is far-field. Fix u=0.
+    # Case B: Symmetric Domain (symmetric=True). Bottom is Crack Plane (z=0).
+    #         - Condition: u_y = 0 on ligament (x > l_init).
+    #         - Condition: Free on crack (x < l_init).
+    #         - Note: In Phase Field, clamping u_y=0 right at the tip might affect diffusion.
+    #         - We will apply u_y=0 for x > l_init.
+    
+    if not symmetric:
+        # Far field bottom -> Clamped or simple support
+        def bottom_side(x, on_boundary):
+            return near(x[1], mesh.coordinates()[:, 1].min())
+        bc_bottom = DirichletBC(V_u, Constant((0.0, 0.0)), bottom_side)
+        bcs_u.append(bc_bottom)
+    else:
+        # Symmetric Half -> Bottom is symmetry plane
+        # 1. Ligament (x > l_init): u_y = 0
+        def ligament_side(x, on_boundary):
+            is_bottom = near(x[1], mesh.coordinates()[:, 1].min())
+            is_ligament = x[0] > l_init # Strictly greater to allow tip opening? 
+            # Or use >= but maybe l_init node needs to open if damage is there.
+            # Using > l_init ensures the node exactly at l_init is NOT constrained.
+            return on_boundary and is_bottom and is_ligament
+        
+        # Constrain u_y = 0 on ligament
+        bc_ligament_y = DirichletBC(V_u.sub(1), Constant(0.0), ligament_side)
+        bcs_u.append(bc_ligament_y)
+        
+        # 2. Prevent rigid body motion in X if needed? 
+        # In Axisymmetric, x=0 is fixed (u_x=0).
+        # In Plane Strain Symmetric, x=0 is usually symmetry plane too (u_x=0).
+        # So X is constrained by the vertical boundaries.
+        pass
 
     # b. Borde Superior
     if not upper_face_free:
@@ -62,14 +88,15 @@ def setup_boundary_conditions(
         bc_upper = DirichletBC(V_u, Constant((0.0, 0.0)), upper_side)
         bcs_u.append(bc_upper)
 
-    # c. Simetría
-    if symmetric:
-        def symmetry_plane(x, on_boundary):
+    # c. Simetría Vertical / Axisimetría (x=0)
+    if symmetric or axisymmetric:
+        def axis_boundary(x, on_boundary):
             return on_boundary and near(x[0], 0.0)
         
-        # Restringe u_x = 0 en el plano de simetría (subespacio 0 del vector)
-        bc_symmetry = DirichletBC(V_u.sub(0), Constant(0.0), symmetry_plane)
-        bcs_u.append(bc_symmetry)
+        # Restringe u_x = 0 (Roller)
+        # In Axi: u_r = 0. In Sym: u_x = 0. Consistent.
+        bc_axis = DirichletBC(V_u.sub(0), Constant(0.0), axis_boundary)
+        bcs_u.append(bc_axis)
 
     if not symmetric:
         def left_side(x, on_boundary):

@@ -1,9 +1,0 @@
-pyproject.toml
-src/fh_phasefield_simulator.egg-info/PKG-INFO
-src/fh_phasefield_simulator.egg-info/SOURCES.txt
-src/fh_phasefield_simulator.egg-info/dependency_links.txt
-src/fh_phasefield_simulator.egg-info/top_level.txt
-src/fields/displacement.py
-src/fields/history.py
-src/fields/phase.py
-src/fields/stress.py

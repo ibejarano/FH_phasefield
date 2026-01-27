@@ -40,6 +40,7 @@ class SimulationConfig:
     output_freq: int = 5
     store_freq: int = 5
     symmetric: bool = False
+    axisymmetric: bool = False
     case_dir: str = "output"
     mesh_name: str = "deep_fh.xml"
     

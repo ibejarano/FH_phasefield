@@ -1,6 +1,0 @@
-Metadata-Version: 2.4
-Name: fh_phasefield_simulator
-Version: 0.1.0
-Summary: Phase-field simulation for fracture mechanics.
-Requires-Python: >=3.8
-Description-Content-Type: text/markdown

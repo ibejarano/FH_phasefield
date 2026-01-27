@@ -27,7 +27,7 @@ class HydraulicSimulator:
         Args:
             protocol: Optional function protocol(t) -> Q(t). If None, uses config.Q0.
         """
-        mode = "SYMMETRIC" if self.config.symmetric else "FULL"
+        mode = "AXISYMMETRIC" if self.config.axisymmetric else ("SYMMETRIC" if self.config.symmetric else "FULL")
         logger.info(f"Starting simulation: {self.config.case_dir} | Mode: {mode}")
         
         t = 0.0

@@ -21,11 +21,13 @@ import argparse
 parser = argparse.ArgumentParser(description="Hydraulic Fracture Simulation")
 parser.add_argument("case_name", nargs="?", default="output_legible", help="Output directory name")
 parser.add_argument("--symmetric", action="store_true", help="Use symmetric formulation")
+parser.add_argument("--axisymmetric", action="store_true", help="Use 2D axisymmetric formulation (x[0] = r)")
 parser.add_argument("--mesh", type=str, help="Path to .geo mesh file")
 args = parser.parse_args()
 
 case_name = args.case_name
 is_symmetric = args.symmetric
+is_axisymmetric = args.axisymmetric
 
 mat_props = MaterialProperties(
     E = 2e8,
@@ -38,8 +40,10 @@ sim_config = SimulationConfig(
     t_max = 1e-2    ,
     Q0 = 0.5e-3,
     p_init = 1000,
+    l_init = 0.1,
     case_dir = case_name,
     symmetric = is_symmetric,
+    axisymmetric = is_axisymmetric,
     tol_p=1e-7,
     tol_phi=1e-3,
     adaptive_time=True,
@@ -104,7 +108,8 @@ bcs_u, bcs_phi = setup_boundary_conditions(
     model.displacement, 
     l_init=sim_config.l_init, 
     h_elem=sim_config.w_init, # Use w_init as the effective initial width
-    symmetric=is_symmetric
+    symmetric=is_symmetric,
+    axisymmetric=is_axisymmetric
 )
 
 model.initialize_problem(bcs_u, bcs_phi)

@@ -2,9 +2,13 @@ import logging
 from typing import Tuple, Dict
 from dolfin import ( Mesh, Constant, inner, grad, 
     project, Function, conditional, gt, assemble, dx,
-    LinearVariationalProblem, LinearVariationalSolver
+    LinearVariationalProblem, LinearVariationalSolver,
+    SpatialCoordinate
 )
-from src.core.physics import epsilon, sigma, psi_positive
+from src.core.physics import (
+    epsilon, sigma, psi_positive,
+    epsilon_axi, sigma_axi, psi_positive_axi
+)
 from scipy.optimize import root_scalar
 from mpi4py import MPI
 
@@ -39,12 +43,21 @@ class HydraulicFractureModel:
     # --- Funciones de Física (Nomenclatura Académica) ---
 
     def _strain(self, u):
+        if self.config.axisymmetric:
+            r = SpatialCoordinate(self.mesh)[0]
+            return epsilon_axi(u, r)
         return epsilon(u)
 
     def _stress_undegraded(self, u):
+        if self.config.axisymmetric:
+            r = SpatialCoordinate(self.mesh)[0]
+            return sigma_axi(u, r, self.material.lmbda, self.material.mu)
         return sigma(u, self.material.lmbda, self.material.mu)
 
     def _strain_energy_density_positive(self, u):
+        if self.config.axisymmetric:
+            r = SpatialCoordinate(self.mesh)[0]
+            return psi_positive_axi(u, r, self.material.lmbda, self.material.mu)
         return psi_positive(u, self.material.lmbda, self.material.mu)
 
     def _compute_fracture_volume(self, phi, u):
@@ -53,7 +66,29 @@ class HydraulicFractureModel:
         Matemáticamente: integral( -u . grad(phi) ) dx
         Representa el espacio 'hueco' creado por el desplazamiento u en la zona dañada phi.
         """
-        return assemble(inner(grad(phi), -u) * dx)
+        # Note: In axisymmetric, dV = 2*pi*r * dr dz.
+        # However, usually we solve for "slice" properties.
+        # But for total volume injection control, we must be consistent.
+        # If Q0 is total rate, then we need measure * 2*pi in axi if the domain is just a slice.
+        # FEniCS default usually implies 1 radian slice or similar for 2D axi unless 2*pi explicitly added.
+        # Let's assume dx_measure already covers the integration measure logic except potentially the 2*pi factor.
+        # Typically for axi: int u_r * n_r * ds ... or internal volume.
+        # For simplicity in Phase field: approximate as integral of opening.
+        
+        # Using the same formula structure but with self.r factor
+        # If axisymmetric, self.r = x[0], else 1.0
+        # If config is axisymmetric, we initialize self.r in initialize_problem which might be too late
+        # for this method if called before initialization?
+        # Actually initialize_problem is called once at start. 
+        # But _compute_fracture_volume is called inside solve_time_step.
+        
+        # We need to ensure self.r is available. 
+        # It is better to rely on model initialization. 
+        # Check if attribute exists, if not default to 1 (safety) or re-derive.
+        # But assume initialize_problem has been called.
+        
+        r_val = getattr(self, 'r', Constant(1.0))
+        return assemble(inner(grad(phi), -u) * r_val * dx)
 
     # --- Inicialización del Problema ---
 
@@ -61,6 +96,13 @@ class HydraulicFractureModel:
         """
         Define las ecuaciones (Formas Variacionales) y configura los Solvers de FEniCS.
         """
+        # Define integration weight (Jacobian determinant for coordinates)
+        if self.config.axisymmetric:
+            x = SpatialCoordinate(self.mesh)
+            self.r = x[0] 
+        else:
+            self.r = Constant(1.0)
+
         # Funciones de Prueba (Trial) y Test
         p = self.phase.get_trialfunction()
         q = self.phase.get_testfunction()
@@ -73,8 +115,10 @@ class HydraulicFractureModel:
         # 1. Forma Variacional del Desplazamiento (Equilibrio Mecánico)
         # Incluye la degradación (1-phi)^2 y el término de presión del fluido.
         k_res = 1.0e-6
-        self.displacement_form = ((1 - p_old)**2 + k_res) * inner(self._strain(v), self._stress_undegraded(u)) * dx \
-                                 + self.pressure_param * inner(v, grad(p_old)) * dx
+        # Note: _strain and _stress_undegraded now handle axi internally if configured.
+        # We multiply by self.r before the measure dx.
+        self.displacement_form = ((1 - p_old)**2 + k_res) * inner(self._strain(v), self._stress_undegraded(u)) * self.r * dx \
+                                 + self.pressure_param * inner(v, grad(p_old)) * self.r * dx
         
         # 2. Forma Variacional del Campo de Fase (Evolución de Daño)
         # Basado en la regularización AT1/AT2 del funcional de Griffith.
@@ -82,7 +126,7 @@ class HydraulicFractureModel:
         lc = self.l_c
         self.phase_field_form = (gc * lc * inner(grad(p), grad(q)) \
                                  + ((gc / lc) + 2.0 * H) * inner(p, q) \
-                                 - 2.0 * H * q) * dx
+                                 - 2.0 * H * q) * self.r * dx
 
         # Configuración de Solvers en los campos respectivos
         self.displacement.setup_solver(self.displacement_form, bcs_u)
