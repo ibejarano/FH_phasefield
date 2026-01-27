@@ -1,3 +1,29 @@
-*.pyc
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 
-output_*
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Simulation outputs
+output_*/
+tests/output_*/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# FEniCS/Gmsh temporaries
+*.msh
+*.xml
+*.h5
+*.xdmf
