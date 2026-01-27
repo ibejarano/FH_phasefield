@@ -55,6 +55,9 @@ class SimulationConfig:
     tol_phi: float = 1e-6 
     tol_p: float = 1e-6
     max_staggered_iter: int = 50
+    
+    # Debug mode
+    debug: bool = False
 
     def __str__(self):
         return (

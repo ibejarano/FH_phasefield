@@ -23,11 +23,13 @@ parser.add_argument("case_name", nargs="?", default="output_legible", help="Outp
 parser.add_argument("--symmetric", action="store_true", help="Use symmetric formulation")
 parser.add_argument("--axisymmetric", action="store_true", help="Use 2D axisymmetric formulation (x[0] = r)")
 parser.add_argument("--mesh", type=str, help="Path to .geo mesh file")
+parser.add_argument("--debug", action="store_true", help="Enable debug output for convergence monitoring")
 args = parser.parse_args()
 
 case_name = args.case_name
 is_symmetric = args.symmetric
 is_axisymmetric = args.axisymmetric
+is_debug = args.debug
 
 mat_props = MaterialProperties(
     E = 2e8,
@@ -51,7 +53,8 @@ sim_config = SimulationConfig(
     dt_shrink=0.5,
     dt_min=1e-6,
     dt_max=1e-2,
-    max_staggered_iter=15
+    max_staggered_iter=15,
+    debug=is_debug
 )
 
 # 2. Mesh setup

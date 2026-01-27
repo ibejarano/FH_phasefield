@@ -154,6 +154,9 @@ class HydraulicFractureModel:
         H_n = Function(self.history.V)
         H_n.assign(self.history.get())
         
+        if self.config.debug:
+            logger.info(f"[DEBUG] Starting staggered loop | dV={dV:.2e} | V_target={vol_target:.4e}")
+        
         while err_phi > phi_tol:
             outer_ite += 1
             
@@ -167,6 +170,10 @@ class HydraulicFractureModel:
             
             # C. Resolver campo de fase con la nueva deformación y nueva historia
             err_phi = self.phase.solve()
+            
+            if self.config.debug:
+                vol_curr = self._compute_fracture_volume(self.phase.get(), self.displacement.get())
+                logger.info(f"[DEBUG] Stag iter {outer_ite:2d}: err_phi={err_phi:.2e}, P={pn:.2f}, ite_p={ite_p}, V={vol_curr:.4e}")
             
             if outer_ite > self.config.max_staggered_iter:
                 raise RuntimeError(f"Bucle Staggered falló (err_phi={err_phi:.2e})")

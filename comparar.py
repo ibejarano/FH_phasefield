@@ -7,11 +7,7 @@ def plotear_casos():
     fig, axs = plt.subplots(2,1, sharex=True)
 
     casos = [
-    "./output_legible_dt2/",
-    "./output_legible_dt5/",
-    "./output_adaptativo/",
-    "./output_adaptativo_2/",
-    "./output_adaptativo_3/"
+    "./tests/output_axi_test/"
     ]
 
     for caso in casos:
@@ -26,8 +22,45 @@ def plotear_casos():
         ax.set_yscale("log")
         ax.legend()
 
+    axs[0].set_ylabel("Presión [Pa]")
+    axs[1].set_ylabel("Apertura [m]")
+    axs[1].set_xlabel("Tiempo [s]")
+
+
+    axs[0].plot(t, 3e3*t**(-1/3), "k--", label="KGD")
+    axs[0].plot(t, 1.3e1*t**(-2/3), "r--", label="Radial")
+
+    axs[0].legend()
+
     plt.show()
 
+def plot_press():
+    fig, axs = plt.subplots(1,1, sharex=True)
+
+    casos = [
+    "./tests/output_axi_test/"
+    ]
+
+    for caso in casos:
+        csv_dir = caso + "results.csv"
+        out = np.loadtxt(csv_dir, delimiter=',', skiprows=1)
+        t, p, v, wplus, wminus = out[:, 0], out[:, 1], out[:, 2], out[:, 3], out[:, 4]
+        axs.plot(t, p, label=caso)
+
+    axs.set_xscale("log")
+    axs.set_yscale("log")
+    axs.legend()
+
+    axs.set_ylabel("Presión [Pa]")
+    axs.set_xlabel("Tiempo [s]")
+
+
+    axs.plot(t, 3e3*t**(-1/3), "k--", label="KGD")
+    axs.plot(t, 1.02e4*t**(-1/5), "r--", label="Radial")
+
+    axs.legend()
+
+    plt.show()
 
 
 
@@ -46,4 +79,4 @@ def limpiar_csv(csv_dir):
     print("¡Archivo corregido guardado como 'archivo_corregido.csv'!")
 
 
-plotear_casos()
+plot_press()

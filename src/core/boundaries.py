@@ -32,6 +32,7 @@ def setup_boundary_conditions(
         crack_center: Centro de la grieta inicial [x, y].
         upper_face_free: Si es True, la cara superior es libre (Tracción). Si es False, u=0.
         symmetric: Si es True, aplica simetría en x=0 (u_x=0).
+        axisymmetric: Si es True, aplica condiciones para problema axisimétrico.
     
     Returns:
         Tuple[List[DirichletBC], List[DirichletBC]]: Listas de BCs para [desplazamiento, fase].
@@ -41,68 +42,94 @@ def setup_boundary_conditions(
     V_u = displacement_field.V
     mesh = phase_field.mesh
     
+    coords = mesh.coordinates()
+    x_min, x_max = coords[:, 0].min(), coords[:, 0].max()
+    y_min, y_max = coords[:, 1].min(), coords[:, 1].max()
+    
     bcs_u = []
     bcs_phi = []
 
     # --- 1. Condiciones Mecánicas (Desplazamiento) ---
     
-    # a. Borde Inferior (Bottom)
-    # Case A: Full Domain (symmetric=False). Bottom is far-field. Fix u=0.
-    # Case B: Symmetric Domain (symmetric=True). Bottom is Crack Plane (z=0).
-    #         - Condition: u_y = 0 on ligament (x > l_init).
-    #         - Condition: Free on crack (x < l_init).
-    #         - Note: In Phase Field, clamping u_y=0 right at the tip might affect diffusion.
-    #         - We will apply u_y=0 for x > l_init.
-    
-    if not symmetric:
-        # Far field bottom -> Clamped or simple support
+    if axisymmetric:
+        # ============ AXISYMMETRIC CASE ============
+        # Coordinates: (r, z) where r = x[0], z = x[1]
+        
+        # a. Eje r=0: u_r = 0 (evita singularidad 1/r)
+        def axis_r0(x, on_boundary):
+            return on_boundary and near(x[0], x_min)
+        bc_axis = DirichletBC(V_u.sub(0), Constant(0.0), axis_r0)
+        bcs_u.append(bc_axis)
+        
+        # b. Far field radial r=L: u_r = 0 (roller condition)
+        def far_field_r(x, on_boundary):
+            return on_boundary and near(x[0], x_max)
+        bc_right = DirichletBC(V_u.sub(0), Constant(0.0), far_field_r)
+        bcs_u.append(bc_right)
+        
+        # c. Bottom z=z_min: u = 0 (clamped)
         def bottom_side(x, on_boundary):
-            return near(x[1], mesh.coordinates()[:, 1].min())
+            return on_boundary and near(x[1], y_min)
         bc_bottom = DirichletBC(V_u, Constant((0.0, 0.0)), bottom_side)
         bcs_u.append(bc_bottom)
-    else:
-        # Symmetric Half -> Bottom is symmetry plane
-        # 1. Ligament (x > l_init): u_y = 0
-        def ligament_side(x, on_boundary):
-            is_bottom = near(x[1], mesh.coordinates()[:, 1].min())
-            is_ligament = x[0] > l_init # Strictly greater to allow tip opening? 
-            # Or use >= but maybe l_init node needs to open if damage is there.
-            # Using > l_init ensures the node exactly at l_init is NOT constrained.
-            return on_boundary and is_bottom and is_ligament
         
-        # Constrain u_y = 0 on ligament
-        bc_ligament_y = DirichletBC(V_u.sub(1), Constant(0.0), ligament_side)
-        bcs_u.append(bc_ligament_y)
+        # d. Top z=z_max: far field (clamped if not free)
+        if not upper_face_free:
+            def upper_side(x, on_boundary):
+                return on_boundary and near(x[1], y_max)
+            bc_upper = DirichletBC(V_u, Constant((0.0, 0.0)), upper_side)
+            bcs_u.append(bc_upper)
+    
+    elif symmetric:
+        # ============ SYMMETRIC PLANE STRAIN ============
+        # Symmetry plane at x=0
         
-        # 2. Prevent rigid body motion in X if needed? 
-        # In Axisymmetric, x=0 is fixed (u_x=0).
-        # In Plane Strain Symmetric, x=0 is usually symmetry plane too (u_x=0).
-        # So X is constrained by the vertical boundaries.
-        pass
-
-    # b. Borde Superior
-    if not upper_face_free:
-        def upper_side(x, on_boundary):
-            return near(x[1], mesh.coordinates()[:, 1].max())
+        # a. Symmetry x=0: u_x = 0
+        def symmetry_plane(x, on_boundary):
+            return on_boundary and near(x[0], x_min)
+        bc_symmetry = DirichletBC(V_u.sub(0), Constant(0.0), symmetry_plane)
+        bcs_u.append(bc_symmetry)
         
-        bc_upper = DirichletBC(V_u, Constant((0.0, 0.0)), upper_side)
-        bcs_u.append(bc_upper)
-
-    # c. Simetría Vertical / Axisimetría (x=0)
-    if symmetric or axisymmetric:
-        def axis_boundary(x, on_boundary):
-            return on_boundary and near(x[0], 0.0)
+        # b. Bottom y=y_min: u = 0
+        def bottom_side(x, on_boundary):
+            return on_boundary and near(x[1], y_min)
+        bc_bottom = DirichletBC(V_u, Constant((0.0, 0.0)), bottom_side)
+        bcs_u.append(bc_bottom)
         
-        # Restringe u_x = 0 (Roller)
-        # In Axi: u_r = 0. In Sym: u_x = 0. Consistent.
-        bc_axis = DirichletBC(V_u.sub(0), Constant(0.0), axis_boundary)
-        bcs_u.append(bc_axis)
-
-    if not symmetric:
-        def left_side(x, on_boundary):
-            return near(x[0], mesh.coordinates()[:, 0].min())
+        # c. Top (if not free)
+        if not upper_face_free:
+            def upper_side(x, on_boundary):
+                return on_boundary and near(x[1], y_max)
+            bc_upper = DirichletBC(V_u, Constant((0.0, 0.0)), upper_side)
+            bcs_u.append(bc_upper)
+        
+        # d. Right side: roller (u_x = 0)
         def right_side(x, on_boundary):
-            return near(x[0], mesh.coordinates()[:, 0].max())
+            return on_boundary and near(x[0], x_max)
+        bc_right = DirichletBC(V_u.sub(0), Constant(0.0), right_side)
+        bcs_u.append(bc_right)
+    
+    else:
+        # ============ FULL DOMAIN ============
+        
+        # a. Bottom: clamped
+        def bottom_side(x, on_boundary):
+            return on_boundary and near(x[1], y_min)
+        bc_bottom = DirichletBC(V_u, Constant((0.0, 0.0)), bottom_side)
+        bcs_u.append(bc_bottom)
+        
+        # b. Top (if not free)
+        if not upper_face_free:
+            def upper_side(x, on_boundary):
+                return on_boundary and near(x[1], y_max)
+            bc_upper = DirichletBC(V_u, Constant((0.0, 0.0)), upper_side)
+            bcs_u.append(bc_upper)
+        
+        # c. Left/Right: roller (u_x = 0)
+        def left_side(x, on_boundary):
+            return on_boundary and near(x[0], x_min)
+        def right_side(x, on_boundary):
+            return on_boundary and near(x[0], x_max)
         bc_left = DirichletBC(V_u.sub(0), Constant(0.0), left_side)
         bc_right = DirichletBC(V_u.sub(0), Constant(0.0), right_side)
         bcs_u.append(bc_left)
