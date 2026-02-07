@@ -1,13 +1,14 @@
 // Simple small mesh for testing axisymmetric formulation
 // Domain: r in [0, 1], z in [0, 1]
+// multiplico todo por 5
 
 // Mesh.Algorithm = 8;
-gridsize = 0.2;
-ref_gridsize = 1e-3;
+gridsize = 20;
+ref_gridsize = 5e-2;
 
-L = 5.0;  // radial extent
-H = 5.0;  // axial extent
-L_refinado = 2.0;  // refined zone near crack
+L = 200.0;  // radial extent
+H = 200.0;  // axial extent
+L_refinado = 50;  // refined zone near crack
 dy = ref_gridsize * 6;
 
 // Outer corners

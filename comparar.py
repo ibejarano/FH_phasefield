@@ -26,9 +26,9 @@ def plotear_casos():
     axs[1].set_ylabel("Apertura [m]")
     axs[1].set_xlabel("Tiempo [s]")
 
-
-    axs[0].plot(t, 3e3*t**(-1/3), "k--", label="KGD")
-    axs[0].plot(t, 1.3e1*t**(-2/3), "r--", label="Radial")
+    tteo = np.linspace(1e-7, 1e-1, 100)
+    axs[0].plot(t, 3e3*tteo**(-1/3), "k--", label="KGD")
+    axs[0].plot(t, 1.3e1*tteo**(-2/3), "r--", label="Radial")
 
     axs[0].legend()
 
@@ -38,7 +38,9 @@ def plot_press():
     fig, axs = plt.subplots(1,1, sharex=True)
 
     casos = [
-    "./tests/output_axi_test/"
+    "./output_radial3/",
+        "./output_kgd_1/",
+        "./output_kgd_ite2/"
     ]
 
     for caso in casos:
@@ -54,9 +56,9 @@ def plot_press():
     axs.set_ylabel("Presión [Pa]")
     axs.set_xlabel("Tiempo [s]")
 
-
-    axs.plot(t, 3e3*t**(-1/3), "k--", label="KGD")
-    axs.plot(t, 1.02e4*t**(-1/5), "r--", label="Radial")
+    tteo = np.linspace(1e-7, 1e-1, 100)
+    axs.plot(tteo, 3e3*tteo**(-1/3), "k--", label="KGD")
+    axs.plot(tteo, 1.02e4*tteo**(-1/5), "r--", label="Radial")
 
     axs.legend()
 

@@ -27,24 +27,23 @@ comm = MPI.COMM_WORLD
 
 # Configuration - short run for testing
 
-
 sim_config = SimulationConfig(
-    dt=1e-6,
-    t_max=5e-1, 
+    dt=1e-7,
+    t_max=5e0, 
     Q0=0.5e-3,
     p_init=1000,
     l_init=0.08,
     w_init=0.001,
-    store_freq= 3,
-    output_freq= 3,
-    case_dir="tests/output_axi_test",
+    store_freq= 100,
+    output_freq= 10,
+    case_dir="tests/output_axi_test_2",
     axisymmetric=True,
     tol_p=1e-6,
     tol_phi=1e-3,
     adaptive_time=True,  # Fixed dt for testing
-    dt_min=1e-7,
+    dt_min=1e-8,
     dt_max=1e-4,
-    max_staggered_iter=50,
+    max_staggered_iter=20,
     debug=True  # Enable debug output
 )
 
