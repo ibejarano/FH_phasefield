@@ -27,3 +27,5 @@ tests/output_*/
 *.xml
 *.h5
 *.xdmf
+*.log
+*.out

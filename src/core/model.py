@@ -1,9 +1,9 @@
 import logging
 from typing import Tuple, Dict
 from dolfin import ( Mesh, Constant, inner, grad, 
-    project, Function, conditional, gt, assemble, dx,
+    project, Function, conditional, gt, assemble, dx, ds,
     LinearVariationalProblem, LinearVariationalSolver,
-    SpatialCoordinate
+    SpatialCoordinate, Measure, as_vector
 )
 from src.core.physics import (
     epsilon, sigma, psi_positive,
@@ -13,6 +13,7 @@ from scipy.optimize import root_scalar
 from mpi4py import MPI
 
 from src.fields.displacement import DisplacementField
+from src.core.boundaries import create_boundary_markers
 from src.fields.phase import PhaseField
 from src.fields.history import HistoryField
 from src.fields.stress import StressField
@@ -95,6 +96,11 @@ class HydraulicFractureModel:
     def initialize_problem(self, bcs_u, bcs_phi):
         """
         Define las ecuaciones (Formas Variacionales) y configura los Solvers de FEniCS.
+        
+        Args:
+            bcs_u: Condiciones de Dirichlet para desplazamiento
+            bcs_phi: Condiciones de Dirichlet para campo de fase
+            boundary_markers: MeshFunction con marcadores de frontera (opcional, para Neumann BCs)
         """
         # Define integration weight (Jacobian determinant for coordinates)
         if self.config.axisymmetric:
@@ -120,11 +126,32 @@ class HydraulicFractureModel:
         self.displacement_form = ((1 - p_old)**2 + k_res) * inner(self._strain(v), self._stress_undegraded(u)) * self.r * dx \
                                  + self.pressure_param * inner(v, grad(p_old)) * self.r * dx
         
+        # Neumann BC: Far-field confining stress (sigma_h) on right boundary
+        if self.config.sigma_h != 0.0:
+            boundary_markers = create_boundary_markers(self.mesh)
+            ds_markers = Measure('ds', domain=self.mesh, subdomain_data=boundary_markers)
+            # Traction vector: t = -sigma_h * n (compression positive means inward force)
+            # For right boundary (x=L), normal n = (1, 0), so t = (-sigma_h, 0)
+            traction = as_vector([-self.config.sigma_h, 0.0])
+            self.displacement_form -= inner(v, traction) * self.r * ds_markers(20)  # right_id = 20
+            logger.info(f"[INFO] Lateral compression OK : {self.config.sigma_h:.1e}")
+        
         # 2. Forma Variacional del Campo de Fase (Evolución de Daño)
         # Basado en la regularización AT1/AT2 del funcional de Griffith.
         gc = self.material.Gc
         lc = self.l_c
-        self.phase_field_form = (gc * lc * inner(grad(p), grad(q)) \
+        
+        # Anisotropic gradient: penalize crack deviation from horizontal plane
+        # alpha = 1.0 → isotropic (original), alpha >> 1 → horizontal fracture only
+        alpha = self.config.phi_anisotropy
+        if alpha != 1.0:
+            grad_p_w = as_vector([alpha * p.dx(0), p.dx(1)])
+            grad_q_w = as_vector([alpha * q.dx(0), q.dx(1)])
+            gradient_term = gc * lc * inner(grad_p_w, grad_q_w)
+        else:
+            gradient_term = gc * lc * inner(grad(p), grad(q))
+        
+        self.phase_field_form = (gradient_term \
                                  + ((gc / lc) + 2.0 * H) * inner(p, q) \
                                  - 2.0 * H * q) * self.r * dx
 

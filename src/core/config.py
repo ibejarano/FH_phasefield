@@ -41,6 +41,9 @@ class SimulationConfig:
     store_freq: int = 5
     symmetric: bool = False
     axisymmetric: bool = False
+    sigma_h: float = 0.0  # Far-field horizontal confining stress (positive = compression)
+    phi_anisotropy: float = 1.0  # Anisotropy ratio for phase-field gradient (1.0 = isotropic, >>1 = horizontal fracture)
+    phi_band_width: float = 0.0  # Half-width of horizontal band where phi can evolve (0 = no constraint)
     case_dir: str = "output"
     mesh_name: str = "deep_fh.xml"
     

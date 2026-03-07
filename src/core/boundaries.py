@@ -11,6 +11,17 @@ class CrackDomain(SubDomain):
     def inside(self, x, on_boundary):
         return abs(x[0] - self.center[0]) <= self.l0 and abs(x[1] - self.center[1]) <= self.w0
 
+class NoCrackZone(SubDomain):
+    """Marks all points OUTSIDE a horizontal band around the crack plane.
+    Used to enforce phi=0 (no damage) outside the band."""
+    def __init__(self, crack_y: float, band_half_width: float):
+        super().__init__()
+        self.crack_y = crack_y
+        self.hw = band_half_width
+
+    def inside(self, x, on_boundary):
+        return abs(x[1] - self.crack_y) > self.hw
+
 def setup_boundary_conditions(
     phase_field, 
     displacement_field, 
@@ -19,7 +30,8 @@ def setup_boundary_conditions(
     crack_center: List[float] = [0.0, 0.0],
     upper_face_free: bool = False,
     symmetric: bool = False,
-    axisymmetric: bool = False
+    axisymmetric: bool = False,
+    phi_band_width: float = 0.0
 ) -> Tuple[List[DirichletBC], List[DirichletBC]]:
     """
     Configura las condiciones de borde para el problema de fractura hidráulica.
@@ -60,17 +72,11 @@ def setup_boundary_conditions(
             return on_boundary and near(x[0], x_min)
         bc_axis = DirichletBC(V_u.sub(0), Constant(0.0), axis_r0)
         bcs_u.append(bc_axis)
-        
-        # b. Far field radial r=L: u_r = 0 (roller condition)
-        def far_field_r(x, on_boundary):
-            return on_boundary and near(x[0], x_max)
-        bc_right = DirichletBC(V_u.sub(0), Constant(0.0), far_field_r)
-        bcs_u.append(bc_right)
-        
+                
         # c. Bottom z=z_min: u = 0 (clamped)
         def bottom_side(x, on_boundary):
             return on_boundary and near(x[1], y_min)
-        bc_bottom = DirichletBC(V_u, Constant((0.0, 0.0)), bottom_side)
+        bc_bottom = DirichletBC(V_u.sub(1), Constant(0.0), bottom_side)
         bcs_u.append(bc_bottom)
         
         # d. Top z=z_max: far field (clamped if not free)
@@ -102,12 +108,6 @@ def setup_boundary_conditions(
                 return on_boundary and near(x[1], y_max)
             bc_upper = DirichletBC(V_u, Constant((0.0, 0.0)), upper_side)
             bcs_u.append(bc_upper)
-        
-        # d. Right side: roller (u_x = 0)
-        def right_side(x, on_boundary):
-            return on_boundary and near(x[0], x_max)
-        bc_right = DirichletBC(V_u.sub(0), Constant(0.0), right_side)
-        bcs_u.append(bc_right)
     
     else:
         # ============ FULL DOMAIN ============
@@ -115,7 +115,7 @@ def setup_boundary_conditions(
         # a. Bottom: clamped
         def bottom_side(x, on_boundary):
             return on_boundary and near(x[1], y_min)
-        bc_bottom = DirichletBC(V_u, Constant((0.0, 0.0)), bottom_side)
+        bc_bottom = DirichletBC(V_u.sub(1), Constant(0.0), bottom_side)
         bcs_u.append(bc_bottom)
         
         # b. Top (if not free)
@@ -141,6 +141,12 @@ def setup_boundary_conditions(
     crack_subdomain = CrackDomain(crack_center, l_init, h_elem)
     bc_phi_crack = DirichletBC(V_phi, Constant(1.0), crack_subdomain)
     bcs_phi.append(bc_phi_crack)
+    
+    # Restricción geométrica: phi=0 fuera de una banda horizontal
+    if phi_band_width > 0.0:
+        no_crack = NoCrackZone(crack_center[1], phi_band_width)
+        bc_phi_band = DirichletBC(V_phi, Constant(0.0), no_crack)
+        bcs_phi.append(bc_phi_band)
     
     return bcs_u, bcs_phi
 

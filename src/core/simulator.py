@@ -41,7 +41,7 @@ class HydraulicSimulator:
         current_dt = self.config.dt
         
         with open(self.csv_path, 'w') as csv_file:
-            csv_file.write("time,pressure,volume,wplus,wminus\\n")
+            csv_file.write("time,pressure,volume,wplus,wminus\n")
             
             while t < self.config.t_max:
                 step += 1

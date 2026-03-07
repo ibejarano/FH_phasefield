@@ -7,7 +7,7 @@ from mpi4py import MPI
 from src.core.config import MaterialProperties, SimulationConfig
 from src.core.model import HydraulicFractureModel
 from src.core.simulator import HydraulicSimulator
-from src.core.boundaries import setup_boundary_conditions
+from src.core.boundaries import setup_boundary_conditions, create_boundary_markers
 from src.core.meshing import generate_mesh
 from src.utils import setup_logging
 
@@ -21,12 +21,13 @@ import argparse
 parser = argparse.ArgumentParser(description="Hydraulic Fracture Simulation")
 parser.add_argument("case_name", nargs="?", default="output_legible", help="Output directory name")
 parser.add_argument("--mesh", type=str, help="Path to .geo mesh file")
+parser.add_argument("--debug", action="store_true", help="Enable debug output for convergence monitoring")
 args = parser.parse_args()
 
 case_name = args.case_name
-is_symmetric = True
-is_axisymmetric = False
-is_debug = True
+is_symmetric = False
+is_axisymmetric = True
+is_debug = args.debug
 
 mat_props = MaterialProperties(
     E = 2e8,
@@ -35,26 +36,27 @@ mat_props = MaterialProperties(
 )
 
 sim_config = SimulationConfig(
-    dt = 1e-4,
-    t_max = 8,
+    dt = 1e-7,
+    t_max = 0.2,
     Q0 = 0.5e-3,
     p_init = 1000,
-    l_init = 0.2,
+    l_init = 0.01,
     store_freq = 20,
     output_freq = 20,
     case_dir = case_name,
-    symmetric = is_symmetric,
     axisymmetric = is_axisymmetric,
-    tol_p=1e-7,
-    tol_phi=5e-4,
+    tol_p=1e-8,
+    tol_phi=1e-3,
     adaptive_time=True,
-    dt_growth=1.05,
-    dt_shrink=0.5,
+    dt_growth=1.03,
+    dt_shrink=0.9,
     dt_min=1e-9,
     dt_max=1e-1,
-    max_staggered_iter=25,
+    max_staggered_iter=15,
     debug=is_debug,
-    sigma_h=1e4
+    sigma_h=1e2,  # Far-field horizontal confining stress [Pa] (positive = compression)
+    phi_anisotropy=1.0,  # Force horizontal fracture for benchmarking (1.0 = isotropic)
+    phi_band_width=0.0021   # Half-width of horizontal band for phi (0 = no constraint)
 )
 
 # 2. Mesh setup
@@ -78,7 +80,7 @@ if comm.rank == 0:
     logging.info("="*40)
     logging.info(f"Mesh Configuration:")
     logging.info(f"  - Input Mesh: {args.mesh if args.mesh else 'Default (Symmetric/Full)'}")
-    logging.info(f"  - Symmetric Mode: TRUE")
+    logging.info(f"  - Symmetric Mode: {is_symmetric}")
     
     logging.info("-" * 20)
     logging.info(f"{mat_props}")
@@ -92,7 +94,7 @@ if comm.rank == 0:
     if args.mesh:
         geo_file = args.mesh
     else:
-        geo_file = "deep_fracture/sym_deep.geo" if is_symmetric else "deep_fracture/deep_fh.geo"
+        geo_file = "geo_files/transition_axi_unstruc.geo"
     generate_mesh(geo_file, sim_config.case_dir, "mesh")
 
 # Wait for mesh generation to complete
@@ -102,7 +104,7 @@ mesh_path = os.path.join(sim_config.case_dir, "mesh.xml")
 mesh = Mesh(comm, mesh_path)
 
 # Definir segun el tamaño de la malla
-sim_config.w_init = mesh.hmin()*1
+sim_config.w_init = mesh.hmin()
 
 # 3. Model & Boundary Conditions
 model = HydraulicFractureModel(mesh, mat_props, sim_config)
@@ -112,13 +114,15 @@ bcs_u, bcs_phi = setup_boundary_conditions(
     model.displacement, 
     l_init=sim_config.l_init, 
     h_elem=sim_config.w_init, # Use w_init as the effective initial width
-    symmetric=is_symmetric,
     axisymmetric=is_axisymmetric,
     upper_face_free=True,
-    phi_band_width=0
+    phi_band_width=sim_config.phi_band_width
 )
 
-model.initialize_problem(bcs_u, bcs_phi)
+# Create boundary markers for Neumann BCs (far-field pressure)
+boundary_markers = create_boundary_markers(mesh)
+
+model.initialize_problem(bcs_u, bcs_phi, boundary_markers=boundary_markers)
 
 # 4. Engine execution
 simulator = HydraulicSimulator(model, sim_config)
