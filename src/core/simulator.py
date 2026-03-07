@@ -34,12 +34,8 @@ class HydraulicSimulator:
         step = 0
         retry_count = 0
         
-        with open(self.csv_path, 'w') as csv_file:
-            csv_file.write("time,pressure,volume,wplus,wminus\n")
-            
-        
         current_dt = self.config.dt
-        
+
         with open(self.csv_path, 'w') as csv_file:
             csv_file.write("time,pressure,volume,wplus,wminus\n")
             

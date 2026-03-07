@@ -11,7 +11,6 @@ class PhaseField:
         self.V = FunctionSpace(mesh, "CG", 1)
         self.new = Function(self.V, name="phi")
         self.old = Function(self.V)
-        self.temp = Function(self.V)
 
     def update(self):
         self.old.assign(self.new)
