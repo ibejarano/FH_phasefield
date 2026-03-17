@@ -27,6 +27,13 @@ class MaterialProperties:
             f"  Lame's 1st param    : {self.lmbda:.2e} Pa"
         )
 
+    @classmethod
+    def from_dict(cls, d: dict) -> "MaterialProperties":
+        """Create a MaterialProperties instance from a dictionary."""
+        valid = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**valid)
+
+
 @dataclass
 class SimulationConfig:
     dt: float
@@ -87,3 +94,9 @@ class SimulationConfig:
             f"    tol_p       : {self.tol_p}\n"
             f"    max_iter    : {self.max_staggered_iter}"
         )
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "SimulationConfig":
+        """Create a SimulationConfig instance from a dictionary."""
+        valid = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**valid)

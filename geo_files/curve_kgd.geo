@@ -36,7 +36,7 @@ Plane Surface(1) = {1};
 Point(10) = {0.0001/scale_case, 0.0, 0};
 Point(11) = {L_frac, 0.0, 0};
 Point(12) = {L_frac*1.5, 0.1, 0};
-Point(13) = {L_frac*2, 0.2, 0};
+Point(13) = {L_frac*2.0, 0.2, 0};
 Point(14) = {L_frac*3.5, 0.7, 0};
 
 // Construccion de curvas de refinamiento

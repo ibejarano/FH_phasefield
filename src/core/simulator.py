@@ -104,7 +104,7 @@ class HydraulicSimulator:
                         logger.warning(f"Step {step} retry due to: {e}")
                         retry_count += 1
                         
-                        if retry_count > 5:
+                        if retry_count > 20:
                             logger.error("FATAL: Failed trying to find the delta time (too many retries).")
                             self.save_results(t)
                             break

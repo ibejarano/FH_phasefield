@@ -1,0 +1,33 @@
+{
+  "description": "Penny-Shaped Hydraulic Fracture (axisymmetric)",
+  "mesh": "geo_files/sym_deep.geo",
+  "material": {
+    "E": 2e8,
+    "nu": 0.3,
+    "Gc": 1
+  },
+  "simulation": {
+    "dt": 1e-7,
+    "t_max": 15,
+    "Q0": 0.5e-3,
+    "p_init": 1000,
+    "l_init": 0.1,
+    "store_freq": 20,
+    "output_freq": 20,
+    "symmetric": false,
+    "axisymmetric": true,
+    "tol_p": 1e-7,
+    "tol_phi": 9e-4,
+    "adaptive_time": true,
+    "dt_growth": 1.05,
+    "dt_shrink": 0.8,
+    "dt_min": 1e-9,
+    "dt_max": 1e-1,
+    "max_staggered_iter": 30,
+    "sigma_h": 0
+  },
+  "runner": {
+    "upper_face_free": true,
+    "auto_l_init_factor": 0.0
+  }
+}

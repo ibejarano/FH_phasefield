@@ -1,0 +1,35 @@
+{
+  "description": "Radial Transition Hydraulic Fracture (axisymmetric)",
+  "mesh": "geo_files/transition_axi_unstruc.geo",
+  "material": {
+    "E": 2e8,
+    "nu": 0.3,
+    "Gc": 1
+  },
+  "simulation": {
+    "dt": 1e-7,
+    "t_max": 0.2,
+    "Q0": 0.5e-3,
+    "p_init": 1000,
+    "l_init": 0.01,
+    "store_freq": 20,
+    "output_freq": 20,
+    "symmetric": false,
+    "axisymmetric": true,
+    "tol_p": 1e-8,
+    "tol_phi": 1e-3,
+    "adaptive_time": true,
+    "dt_growth": 1.03,
+    "dt_shrink": 0.9,
+    "dt_min": 1e-9,
+    "dt_max": 1e-1,
+    "max_staggered_iter": 15,
+    "sigma_h": 1e2,
+    "phi_anisotropy": 1.0,
+    "phi_band_width": 0.0021
+  },
+  "runner": {
+    "upper_face_free": true,
+    "auto_l_init_factor": 0.0
+  }
+}

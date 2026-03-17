@@ -11,10 +11,10 @@ scale_case = 0.3;
 gridsize = 1;
 ref_gridsize = 2e-3/scale_case;
 
-L = 20.0;  // radial extent
-H = 20.0;  // axial extent
+L = 100.0;  // radial extent
+H = 50.0;  // axial extent
 H_top = 1;
-L_frac = 0.75;
+L_frac = 6;
 
 // Outer corners
 Point(1) = { 0 , H_top  , 0.0, gridsize};
@@ -34,7 +34,7 @@ Plane Surface(1) = {1};
 
 // definimos la curva
 Point(10) = {0.0001/scale_case, 0.0, 0};
-Point(14) = {L_frac*3.5, 0.0, 0};
+Point(14) = {L_frac, 0.0, 0};
 
 // Construccion de curvas de refinamiento
 Line(10) = {10, 14};
@@ -52,7 +52,7 @@ Field[2] = Threshold;
 Field[2].InField = 1;
 Field[2].SizeMin = ref_gridsize;  // Tamaño sobre la curva
 Field[2].SizeMax = gridsize;           // Tamaño lejos de la curva
-Field[2].DistMin = 0.01/scale_case;         // Distancia donde empieza a ensanchar
+Field[2].DistMin = 4*5e-3/scale_case;         // Distancia donde empieza a ensanchar
 Field[2].DistMax = 3;         // Distancia donde ya alcanza el tamaño máximo
 
 // 4. Establecer como campo de fondo

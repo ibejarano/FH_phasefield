@@ -1,0 +1,32 @@
+{
+  "description": "Radial Hydraulic Fracture (axisymmetric)",
+  "mesh": "geo_files/shallow_axi.geo",
+  "material": {
+    "E": 2e8,
+    "nu": 0.3,
+    "Gc": 1
+  },
+  "simulation": {
+    "dt": 1e-7,
+    "t_max": 5e1,
+    "Q0": 0.5e-3,
+    "p_init": 1000,
+    "l_init": 0.3,
+    "store_freq": 20,
+    "output_freq": 20,
+    "symmetric": false,
+    "axisymmetric": true,
+    "tol_p": 1e-7,
+    "tol_phi": 1e-3,
+    "adaptive_time": true,
+    "dt_growth": 1.1,
+    "dt_shrink": 0.5,
+    "dt_min": 1e-9,
+    "dt_max": 1e-2,
+    "max_staggered_iter": 15
+  },
+  "runner": {
+    "upper_face_free": false,
+    "auto_l_init_factor": 10.0
+  }
+}
